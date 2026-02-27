@@ -25,5 +25,8 @@
    ```bash
    python src/main.py
    ```
-
-   ![Main_window](assets/Main_window.png)
+<p align="center">
+  <img src="assets/Main_window.png" alt="Main game window" width="600"/>
+  <br>
+  <em>Главное окно приложения с загруженным изображением</em>
+</p>
