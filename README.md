@@ -26,7 +26,7 @@
    python src/main.py
    ```
 <p align="center">
-  <img src="assets/Main_window.png" alt="Main game window" width="600"/>
+  <img src="assets/Main_window.png" alt="Main game window" width="500"/>
   <br>
-  <em>Главное окно приложения с загруженным изображением</em>
+  <em>Main game window</em>
 </p>
