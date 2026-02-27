@@ -25,3 +25,5 @@
    ```bash
    python src/main.py
    ```
+
+   ![Main_window](assets/Main_window.png)
