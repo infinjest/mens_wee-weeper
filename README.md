@@ -14,8 +14,8 @@
 3. Create and activate a virtual environment:
    ```bash
    python -m venv .venv
-   source .venv/bin/activate  # для Linux/macOS
-   .venv\Scripts\activate     # для Windows
+   source .venv/bin/activate  # for Linux/macOS
+   .venv\Scripts\activate     # for Windows
    ```
 4. Install the requirements:
    ```bash
