@@ -12,10 +12,10 @@ import sys
 
 def resource_path(relative_path):
     try:
-        # PyInstaller создаёт временную папку и хранит путь в _MEIPASS
+        # pyinstaller creating the temp dir and keeping the path in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
-        # Запуск из папки с программой (режим onedir)
+        # launch from the program folder (onedir mode)
         base_path = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__))
     
     return os.path.join(base_path, relative_path)
@@ -29,7 +29,7 @@ def main():
 
     game_data_folder = os.path.join(appdata_roaming, "Men's♂wee-weeper")
     if not os.path.exists(game_data_folder):
-        os.makedirs(game_data_folder)  # создаст папку, если её нет
+        os.makedirs(game_data_folder)  # will create a dir, if it doesn't exist
 
     save_file = os.path.join(game_data_folder, "records.txt")
 
@@ -95,7 +95,7 @@ def main():
         def left_click(event):
             nonlocal field
 
-            # если все клетки закрыты, запускаем отсчет времени сессии
+            # start the session timer
             start_time()
 
             for key, value in images.items():
@@ -103,8 +103,7 @@ def main():
                     i, j = img_table_rvrs[value]
                     cell = field.field[i][j]
                     if cell and not cell.is_tagged:
-                        # реализация безопасного первого хода. если при первом ходе попадаем на клетку с миной
-                        # перестраиваем поле до тех пор, пока в выбранной клетке не будет мины и открываем ее
+                        # safe first move implementation
                         if field.closed == field.n ** 2 and cell.is_mine:
                             while 1:
                                 field = get_init_field(level)
@@ -128,7 +127,7 @@ def main():
                                 status_bar_left.config(text=f"Nice move! Tags set: {field.tags}. Cells left to open: {field.closed - field.total_mines}.")
 
         def right_click(event):
-            # если все клетки закрыты, запускаем отсчет времени сессии
+            # start the session timer
             start_time()
 
             for key, value in images.items():
@@ -147,10 +146,7 @@ def main():
             return parse_time[0] * 3600 + parse_time[1] * 60 + parse_time[2]
 
         def lose_win(message):
-            nonlocal recordsmen
-            nonlocal exit
-            nonlocal level
-            nonlocal start
+            nonlocal recordsmen, exit, level, start
 
             play_sound(message)
             show_open("open")
@@ -179,7 +175,7 @@ def main():
 
             result = messagebox.askyesno("Game over", f"You {message}! Wish you try once more?")
             if not result:
-                exit = True  # Выход из цикла, если нажато "Нет"'''  
+                exit = True  # Exit the loop if "No" is pressed
             start = None
             root.destroy()
                 
@@ -189,7 +185,7 @@ def main():
             result = messagebox.askyesno("Exit", "Are you sure you want to quit?")
             if result:
                 root.destroy()
-                exit = True  # Выход из цикла, если нажато "Да"
+                exit = True  # Exit the loop if "Yes" is pressed
 
         def mute_func():
             nonlocal mute
@@ -243,20 +239,20 @@ def main():
             table.title("Hall of fame")
             w = root.winfo_screenwidth()
             h = root.winfo_screenheight()
-            w = w//2 # середина экрана
+            w = w//2 # middle of the screen
             h = h//2 
             table.geometry('350x120+{}+{}'.format(w - 180, h - 40))
 
             table.resizable(False, False)
 
-            # Define columns
+            # define columns
             columns = ("level", "name", "time")
 
-            # Create the Treeview widget
+            # create the Treeview widget
             # show="headings" hides the default first column used for the tree hierarchy
             tree = ttk.Treeview(table, columns=columns, show='headings', style="Custom.Treeview")
 
-            # Configure column headings and widths
+            # configure column headings and widths
             tree.heading("level", text="Level", anchor=tk.CENTER)
             tree.heading("name", text="Name", anchor=tk.CENTER)
             tree.heading("time", text="Time", anchor=tk.CENTER)
@@ -268,19 +264,19 @@ def main():
             recordsmen_values = [list(x) for x in list(recordsmen.values())]
             recordsmen_lst = [[level_names[i]] + recordsmen_values[i] for i in range(3)]
 
-            # Insert data into the Treeview
+            # insert data into the Treeview
             for item in recordsmen_lst:
             # "" means no parent (top level item), "end" means insert at the end of the list
                 tree.insert("", tk.END, values=item)
 
             play_sound("do_you_like", pool=False)
 
-            # Pack the widgets
+            # pack the widgets
             tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         def start_time():
             nonlocal start
-            # если все клетки закрыты, запускаем отсчет времени сессии
+            # if all cells are closed, start the session timer
             if field.closed == field.n ** 2 and not start:
                 start = time.time()
                 update_time()
@@ -310,8 +306,7 @@ def main():
         def get_time_in_hhmmss():
             return time.strftime("%H:%M:%S", time.gmtime(time.time() - start))
         
-                # обработчик события - попадания курсора на закрытую клетку
-        
+        # event handler - "cursor hovers over a closed cell"
         def on_motion(event):
             #=^.^=
             nonlocal target_cell, prev_cell
@@ -321,28 +316,28 @@ def main():
                     i, j = cell_table[cells[key]]
                     cell = field.field[i][j]
                     if cell:
-                        # Получаем все объекты под курсором (в порядке стека, снизу вверх)
+                        # get all objects under the cursor (in stack order, bottom to top)
                         objects_under = canvas.find_overlapping(event.x, event.y, event.x, event.y)
 
-                        # Ищем первый объект с тегом "cell"
+                        # looking for the first object with the tag "cell"
                         for obj in objects_under:
                             tags = canvas.gettags(obj)
                             if "cell" in tags:
                                 target_cell = obj
                                 break
 
-                        # Если нашли объект целевого слоя и он изменился
+                        # if the target object is found and it has changed
                         if target_cell and target_cell != prev_cell:
-                            # Убираем подсветку с предыдущего
+                            # remove the fill from the previous one
                             if prev_cell and canvas.itemcget(prev_cell, option="fill") != '#56b6c2':
                                 canvas.itemconfigure(prev_cell, fill='light blue')
-                            # Подсвечиваем новый объект
+                            # filling the next one, moving on to the next one
                             if canvas.itemcget(target_cell, option="fill") != '#56b6c2':
                                 canvas.itemconfigure(target_cell, fill='light grey')
                                 prev_cell = target_cell
                     else:
                         on_leaving(event)
-                        
+        # if the cursor is out of the field, return the fill to its original state        
         def on_leaving(event):
             nonlocal target_cell, prev_cell
             for value in cells.values():
@@ -350,20 +345,20 @@ def main():
                     canvas.itemconfigure(value, fill='light blue')
                     prev_cell = target_cell = None
         
-        # получаем обратную таблицу соответствия для слоя изображений - для определения клетки, по которой кликнули
+        # getting the reverse lookup table for the image layer - to determine the cell that was clicked
         img_table_rvrs = get_table(101, True)
 
-        # инициализация миксера (если mute не True)
+        # mixer initialization (if mute == False)
         if not mute:
             pygame.mixer.init()
         
-        # приветствие, звуковое сопровождение
+        # greeting, sound accompaniment
         play_sound("start")
 
-        # инициализация игрового поля, уровень сложности - Easy / 10 mines
+        # field creating + initialization, default level = "Easy / 10 mines"
         field = get_init_field(level)
 
-        # создание и конфигурация главного окна
+        # main window, creating + configuration
         root = tk.Tk()
         root.title("Men's♂wee-weeper")
         root.geometry("510x560")
@@ -372,7 +367,7 @@ def main():
         except FileNotFoundError:
             root.iconbitmap()
 
-        # создание и конфигурация виджета-холста canvas
+        # canvas, creating + configuration
         canvas = tk.Canvas(bg="white", width=501, height=501)
         canvas.pack(anchor=tk.CENTER)
         canvas.bind("<Button-1>", left_click)
@@ -380,44 +375,44 @@ def main():
         canvas.bind("<Motion>", on_motion)
         canvas.bind("<Leave>", on_leaving)
 
-        # забивка canvas 100 клетками - создание 1-го слоя клеток. Добавление каждой клетке события - попадание курсора
+        # creating the layer of cells (1st)
         cells = {}
         for i in range(2, 502, 50):
             for j in range(2, 502, 50):
                 cell = canvas.create_rectangle(i, j, i + 50, j + 50, fill="light blue", outline="#f0f0f0", width=3, tags="cell")
                 cells[((i, i + 50), (j, j + 50))] = cell
 
-        # создание прозрачного квадрата 35x35 пикселей - дефолтное значение для слоя images
+        # creating a transp 35x35 pixel square (default value for the layer of images)
         transp_sq = Image.new("RGBA", (35, 35),  (255, 255, 255, 0))
         transp_sq = ImageTk.PhotoImage(transp_sq)
 
-        # забивка canvas 100 изображениями - создание 2-й слоя изображений (для отображения картинок dropplets, eggplant)
+        # creating the image layer - 2nd - to display droplet and eggplant images
         images = {}
         for i in range(27, 527, 50):
             for j in range(27, 527, 50):
                 cell = canvas.create_image(i, j, image=transp_sq, anchor=tk.CENTER, tags="img")
                 images[(i, j)] = cell
 
-        # создание 3-й слоя текста, для отображения количества мин
+        # creating the layer of text - 3rd - to display the number of mines
         text = {}
         for i in range(27, 527, 50):
             for j in range(27, 527, 50):
                 cell = canvas.create_text(i, j, text="", font=("Bahnschrift", 16, "bold"), fill="white", anchor=tk.CENTER, tags="txt")
                 text[(i, j)] = cell
 
-        # центрирование главного окна
+        # main window centering
         root.eval('tk::PlaceWindow . center')
 
-        # запрет изменения размеров главного окна
+        # disabling main window resizing
         root.resizable(False, False)
 
-        # Перехват нажатия на крестик
+        # intercepting click on the cross
         root.protocol("WM_DELETE_WINDOW", push_exit)
 
-        # запрет возможности отрыва подменю во всех пунктах меню
+        # disabling submenu tearing off
         root.option_add("*tearOff", False)
 
-        # создание и настройка пунктов и подпунктов меню главного окна
+        # menu configuration
         main_menu = tk.Menu()
         level_menu = tk.Menu()
         main_menu.add_cascade(label="Level", menu=level_menu)
@@ -433,14 +428,14 @@ def main():
         records_menu.add_command(label="Show table", command=show_records)
         root.config(menu=main_menu)
 
-        # создание и упаковка меток для информационной строки (снизу слева) и времени сессии (снизу справа)
+        # creating and packing labels for status bar and session time bar
         status_bar_left = tk.Label(root, text=f"Welcome to the party! First move is safe!", anchor=tk.W)
         status_bar_left.pack(side=tk.LEFT, anchor=tk.W, padx=5)
 
         session_time_right = tk.Label(root, anchor=tk.E, width=7)
         session_time_right.pack(side=tk.RIGHT, anchor=tk.E, padx=5)
 
-        # создание объектов PhotoImage из png файлов (для отображения картинок dropplets, eggplant)
+        # creating PhotoImage objects from png's for displaying dropplets and eggplants
         try:
             dropplets_img = ImageTk.PhotoImage(Image.open(resource_path("images/droplets.png")))
             eggplant_img = ImageTk.PhotoImage(Image.open(resource_path("images/eggplant.png")))
@@ -449,7 +444,7 @@ def main():
             root.destroy()
             exit = not exit
 
-        # запуск бесконечного цикла для run_app (выход если exit True)
+        # inf loop for the run_app (exit if exit == True)
         root.mainloop()
 
 

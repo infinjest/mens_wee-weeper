@@ -1,6 +1,5 @@
-from random import randint, choice
+from random import randint
 
-# вместо кучи property
 class Descr:
     def __set_name__(self, owner, name):
         self.name = "_" + name
@@ -17,7 +16,7 @@ class Cell:
 
     def __init__(self):
         self.is_mine = False
-        self.number = 0  # число мин вокруг клетки (целое число от 0 до 8)
+        self.number = 0  # mines around the cell (int from 0 to 8)
         self.is_open = False
         self.is_tagged = False
 
@@ -44,10 +43,9 @@ class GameField:
     def field(self):
         return self.__field_cells
 
-    # инициализация начального состояния игрового поля
     def init_field(self):
 
-        # расстановка мин
+        # mines placement
         cnt = 0
         while cnt < self.total_mines:
             rand_i, rand_j = randint(0, self.n - 1), randint(0, self.n - 1)
@@ -56,7 +54,7 @@ class GameField:
                 cell.is_mine = True
                 cnt += 1
 
-        # подсчет количества мин вокруг клеток без мин
+        # mines counting
         for i in range(self.n):
             for j in range(self.n):
                 cell = self.field[i][j]
@@ -66,7 +64,7 @@ class GameField:
                             if self.are_indices_corr(ii, jj):
                                 cell.number += self.field[ii][jj].is_mine
 
-    # рекурсивное открытие всех ячеек области, включая границы (ячейки с cell.number != 0)
+    # recursive opening
     def recurs_open(self, i, j):
         for ii in [i - 1, i, i + 1]:
             for jj in [j - 1, j, j + 1]:
@@ -77,7 +75,7 @@ class GameField:
                         if self.field[ii][jj].number == 0:
                             self.recurs_open(ii, jj)
 
-    # открытие ячейки с индексами (i, j) и области за ней, если cell.number = 0
+    # opening the cell
     def open_cell(self, i, j):
         cell = self.field[i][j]
         if cell:
@@ -86,6 +84,6 @@ class GameField:
         if cell.number == 0:
             self.recurs_open(i, j)
 
-    # проверка что не выходим за границы поля
+    # are we within boundaries
     def are_indices_corr(self, i: int, j: int) -> bool:
         return (all([isinstance(x, int) for x in (i, j)]) and 0 <= i < self.n and 0 <= j < self.n)
