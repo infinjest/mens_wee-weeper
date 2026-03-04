@@ -25,17 +25,10 @@ def main():
     target_cell, prev_cell = None, None
     levels = {"10 dicks" : 10, "15 dicks" : 15, "20 dicks" : 20}
     level = tuple(levels.items())[0]
-    appdata_roaming = os.getenv('APPDATA')
-
-    game_data_folder = os.path.join(appdata_roaming, "Men's♂wee-weeper")
-    if not os.path.exists(game_data_folder):
-        os.makedirs(game_data_folder)  # will create a dir, if it doesn't exist
-
-    save_file = os.path.join(game_data_folder, "records.txt")
 
     try:
         recordsmen = {}
-        with open(save_file, 'r', encoding="utf-8") as records:
+        with open(resource_path("records.txt"), 'r', encoding="utf-8") as records:
             for lvl in levels:
                 recordsmen[lvl] = tuple(records.readline().rstrip().split(", "))
     except FileNotFoundError:
@@ -43,7 +36,7 @@ def main():
 
     while not exit:
         def show_open(mode):
-            # получаем таблицы соответствия "(координаты клетки) -> номер объекта canvas" для слоя изображений и слоя текста
+            # getting tables "(cell's coords) -> number of canvas obj" for img and txt layer
             img_table = get_table(101)
             txt_table = get_table(201)
 
@@ -52,7 +45,7 @@ def main():
                     cell = field.field[i][j]
                     if mode == "show":
                         if not cell.is_open:
-                            canvas.itemconfigure(img_table[(i, j)], image=dropplets_img if cell.is_tagged else transp_sq)
+                            canvas.itemconfigure(img_table[(i, j)], image=droplets_img if cell.is_tagged else transp_sq)
                         else:
                             if cell.is_mine:
                                 canvas.itemconfigure(img_table[(i, j)], image=eggplant_img)
@@ -73,7 +66,7 @@ def main():
                 print()
 
         def fill_opened_cells(all):
-            # получаем таблицу соответствия для слоя клеток (чтобы менять их заливку)
+            # getting table for cells layer (in order to change their fill)
             cells_table = get_table(1)
 
             for i in range(field.n):
@@ -81,14 +74,14 @@ def main():
                     cell = field.field[i][j]
                     if not all:
                         if cell.is_open:
-                            # отмечаем красной заливкой клетку с миной, на которой произошел подрыв
+                            # fill in red the cell which was blown up
                             canvas.itemconfigure(cells_table[(i, j)], fill="#fa0202" if cell.is_mine else '#56b6c2')
                     if all:
                         if cell.is_tagged:
-                            # визуализируем заливкой правильность установленных флагов
+                            # visualizing the correctness of flags installation
                             canvas.itemconfigure(cells_table[(i, j)], fill="#76f1bc" if cell.is_mine else "#ffacb6")
                         else:
-                            # клетка с миной, на которой игрок подорвался, осталась красной
+                            # the cell with the mine that the player blew up on remained red
                             if canvas.itemcget(cells_table[(i, j)], option="fill") != "#fa0202":
                                 canvas.itemconfigure(cells_table[(i, j)], fill='#56b6c2')
 
@@ -163,13 +156,13 @@ def main():
                 if name is not None:
                     recordsmen[level[0]] = (name, stop_hhmmss)
                     try:
-                        os.chmod(save_file, stat.S_IWRITE)
-                        with open(save_file, 'r+', encoding="utf-8") as records:
+                        os.chmod(resource_path("records.txt"), stat.S_IWRITE)
+                        with open(resource_path("records.txt"), 'r+', encoding="utf-8") as records:
                             records.truncate()
                             values_as_strings = [", ".join(x) + "\n" for x in recordsmen.values()]
                             st_to_write = "".join(values_as_strings).rstrip("\n")
                             records.writelines(st_to_write)
-                        os.chmod(save_file, 0o444)
+                        os.chmod(resource_path("records.txt"), 0o444)
                     except FileNotFoundError as error:
                         messagebox.showerror("Error", error)
 
@@ -437,7 +430,7 @@ def main():
 
         # creating PhotoImage objects from png's for displaying dropplets and eggplants
         try:
-            dropplets_img = ImageTk.PhotoImage(Image.open(resource_path("images/droplets.png")))
+            droplets_img = ImageTk.PhotoImage(Image.open(resource_path("images/droplets.png")))
             eggplant_img = ImageTk.PhotoImage(Image.open(resource_path("images/eggplant.png")))
         except FileNotFoundError:
             messagebox.showerror("Error", "Image files for mines and tags were not found in the directory.\nThe game will be terminated.")
