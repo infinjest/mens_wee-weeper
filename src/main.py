@@ -1,24 +1,14 @@
-import ms_classes as cls
+import canvas_related as cr
+import common_logics as cl
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import messagebox, simpledialog
 from PIL import Image, ImageTk
 import pygame.mixer
 from random import choice
 import time
 import os
 import stat
-import sys
 
-
-def resource_path(relative_path):
-    try:
-        # pyinstaller creating the temp dir and keeping the path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        # launch from the program folder (onedir mode)
-        base_path = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__))
-    
-    return os.path.join(base_path, relative_path)
 
 def main():
     exit, mute, start = False, False, None
@@ -26,65 +16,7 @@ def main():
     levels = {"10 dicks" : 10, "15 dicks" : 15, "20 dicks" : 20}
     level = tuple(levels.items())[0]
 
-    try:
-        recordsmen = {}
-        with open(resource_path("records.txt"), 'r', encoding="utf-8") as records:
-            for lvl in levels:
-                recordsmen[lvl] = tuple(records.readline().rstrip().split(", "))
-    except FileNotFoundError:
-        pass
-
     while not exit:
-        def show_open(mode):
-            # getting tables "(cell's coords) -> number of canvas obj" for img and txt layer
-            img_table = get_table(101)
-            txt_table = get_table(201)
-
-            for i in range(field.n):
-                for j in range(field.n):
-                    cell = field.field[i][j]
-                    if mode == "show":
-                        if not cell.is_open:
-                            canvas.itemconfigure(img_table[(i, j)], image=droplets_img if cell.is_tagged else transp_sq)
-                        else:
-                            if cell.is_mine:
-                                canvas.itemconfigure(img_table[(i, j)], image=eggplant_img)
-                            elif cell.is_tagged:
-                                canvas.itemconfigure(img_table[(i, j)], image=transp_sq)
-                                field.tags -= 1
-                            else:
-                                canvas.itemconfigure(txt_table[(i, j)], text=f"{cell.number}" if cell.number != 0 else "")
-                    elif mode == "open":
-                        if cell.is_tagged:
-                            canvas.itemconfigure(img_table[(i, j)], image=transp_sq if not cell.is_mine else eggplant_img)
-                        else:
-                            if not cell.is_mine:
-                                canvas.itemconfigure(txt_table[(i, j)], text=f"{cell.number}" if cell.number != 0 else "")
-                            else:
-                                canvas.itemconfigure(img_table[(i, j)], image=eggplant_img)
-                        fill_opened_cells(all=True)
-                print()
-
-        def fill_opened_cells(all):
-            # getting table for cells layer (in order to change their fill)
-            cells_table = get_table(1)
-
-            for i in range(field.n):
-                for j in range(field.n):
-                    cell = field.field[i][j]
-                    if not all:
-                        if cell.is_open:
-                            # fill in red the cell which was blown up
-                            canvas.itemconfigure(cells_table[(i, j)], fill="#fa0202" if cell.is_mine else '#56b6c2')
-                    if all:
-                        if cell.is_tagged:
-                            # visualizing the correctness of flags installation
-                            canvas.itemconfigure(cells_table[(i, j)], fill="#76f1bc" if cell.is_mine else "#ffacb6")
-                        else:
-                            # the cell with the mine that the player blew up on remained red
-                            if canvas.itemcget(cells_table[(i, j)], option="fill") != "#fa0202":
-                                canvas.itemconfigure(cells_table[(i, j)], fill='#56b6c2')
-
         def left_click(event):
             nonlocal field
 
@@ -99,13 +31,13 @@ def main():
                         # safe first move implementation
                         if field.closed == field.n ** 2 and cell.is_mine:
                             while 1:
-                                field = get_init_field(level)
+                                field = cl.get_init_field(level)
                                 if not field.field[i][j].is_mine:
                                     cell = field.field[i][j]
                                     break
                         closed_before = field.closed
                         field.open_cell(i, j)
-                        fill_opened_cells(all=False)
+                        cr.fill_opened_cells(field, canvas, all=False)
                         if cell.is_mine:
                             lose_win("lose")
                         else:
@@ -113,10 +45,10 @@ def main():
                                 lose_win("win")
                             else:
                                 if closed_before - field.closed > 1:
-                                    play_sound("nice", pool=False)
+                                    cl.play_sound(mute, "nice", pool=False)
                                 else:
-                                    play_sound("move")
-                                show_open("show")
+                                    cl.play_sound(mute, "move")
+                                cr.show_open(field, canvas, droplets_img, eggplant_img, transp_sq, mode="show")
                                 status_bar_left.config(text=f"Nice move! Tags set: {field.tags}. Cells left to open: {field.closed - field.total_mines}.")
 
         def right_click(event):
@@ -130,19 +62,16 @@ def main():
                     if not cell.is_open:
                         cell.is_tagged = not cell.is_tagged
                         field.tags = field.tags + 1 if cell.is_tagged else field.tags - 1
-                        play_sound("tag")
-                        show_open("show")
+                        cl.play_sound(mute, "tag")
+                        cr.show_open(field, canvas, droplets_img, eggplant_img, transp_sq, mode="show")
                         status_bar_left.config(text=f"The tag is {"" if cell.is_tagged else "un"}set! Tags set: {field.tags}. Cells left to open: {field.closed - field.total_mines}.")
 
-        def get_secs_from_hhmmss(hhmmss : str):
-            parse_time = [int(x) for x in hhmmss.split(":")]
-            return parse_time[0] * 3600 + parse_time[1] * 60 + parse_time[2]
-
         def lose_win(message):
-            nonlocal recordsmen, exit, level, start
+            nonlocal exit, level, start
+            recordsmen = cl.get_recordsmen(levels)
 
-            play_sound(message)
-            show_open("open")
+            cl.play_sound(mute, message)
+            cr.show_open(field, canvas, droplets_img, eggplant_img, transp_sq, mode="open")
 
             stop_hhmmss = get_time_in_hhmmss()
             status_bar_left.config(text=f"Game over. Time: {stop_hhmmss}")
@@ -156,13 +85,13 @@ def main():
                 if name is not None:
                     recordsmen[level[0]] = (name, stop_hhmmss)
                     try:
-                        os.chmod(resource_path("records.txt"), stat.S_IWRITE)
-                        with open(resource_path("records.txt"), 'r+', encoding="utf-8") as records:
+                        os.chmod(cl.resource_path("records.txt"), stat.S_IWRITE)
+                        with open(cl.resource_path("records.txt"), 'r+', encoding="utf-8") as records:
                             records.truncate()
                             values_as_strings = [", ".join(x) + "\n" for x in recordsmen.values()]
                             st_to_write = "".join(values_as_strings).rstrip("\n")
                             records.writelines(st_to_write)
-                        os.chmod(resource_path("records.txt"), 0o444)
+                        os.chmod(cl.resource_path("records.txt"), 0o444)
                     except FileNotFoundError as error:
                         messagebox.showerror("Error", error)
 
@@ -171,139 +100,12 @@ def main():
                 exit = True  # Exit the loop if "No" is pressed
             start = None
             root.destroy()
-                
-        def push_exit():
-            nonlocal exit
 
-            result = messagebox.askyesno("Exit", "Are you sure you want to quit?")
-            if result:
-                root.destroy()
-                exit = True  # Exit the loop if "Yes" is pressed
-
-        def mute_func():
-            nonlocal mute
-            mute = not mute
-
-        def play_sound(mode, pool=True):
-            if not mute:
-                prefix, postfix = "sounds/", ".mp3"
-                try:
-                    if pool:
-                        match mode:
-                            case "lose":
-                                fix = choice(["aaah", "victim", "augh", "fuck_you", "leather_man", "lube_it_up", "suction"])
-                            case "move":
-                                fix = choice(["thats_amazing", "yes", "spank_1", "spank_2", "spank_3", "woo"])
-                            case "start":
-                                fix = choice(["lash", "make_me_cum", "that_turns_me_on", "stick_finger"])
-                            case "tag":
-                                fix = choice(["ass_we_can", "fucking_deep", "mmmm", "eargasm_1", "eargasm_2"])
-                            case "win":
-                                fix = choice(["celebrate", "dungeon_master", "wee_wee"])
-                    else:
-                        fix = mode
-                    pygame.mixer.music.load(resource_path(prefix + fix + postfix))
-                    pygame.mixer.music.play()
-                except FileNotFoundError:
-                    messagebox.showerror("Error", "Audio files were not found in the directory. Mute mode is enabled")
-                    mute_func()     
-
-        def get_init_field(level):
-            new_field = cls.GameField(10, level[1])
-            new_field.init_field()
-            return new_field
-        
-        def set_level(value : str):
-            nonlocal level
-            level = (value, levels[value])
-            root.destroy()
-
-        def show_records():
-            nonlocal levels
-
-            table = tk.Toplevel(root)
-
-            style = ttk.Style()
-            style.theme_use('clam')
-            style.configure("Custom.Treeview", font=('Segoe UI', 11))
-            style.configure("Custom.Treeview.Heading", foreground="white", background='#56b6c2', font=('Segoe UI', 12, "bold"), relief='None')
-            style.map("Custom.Treeview.Heading", background=[('active', '#56b6c2')])
-
-            table.title("Hall of fame")
-            w = root.winfo_screenwidth()
-            h = root.winfo_screenheight()
-            w = w//2 # middle of the screen
-            h = h//2 
-            table.geometry('350x120+{}+{}'.format(w - 180, h - 40))
-
-            table.resizable(False, False)
-
-            # define columns
-            columns = ("level", "name", "time")
-
-            # create the Treeview widget
-            # show="headings" hides the default first column used for the tree hierarchy
-            tree = ttk.Treeview(table, columns=columns, show='headings', style="Custom.Treeview")
-
-            # configure column headings and widths
-            tree.heading("level", text="Level", anchor=tk.CENTER)
-            tree.heading("name", text="Name", anchor=tk.CENTER)
-            tree.heading("time", text="Time", anchor=tk.CENTER)
-            tree.column("level", width=35, anchor=tk.CENTER)
-            tree.column("name", width=145, anchor=tk.CENTER)
-            tree.column("time", width=50, anchor=tk.CENTER)
-
-            level_names = tuple(levels)
-            recordsmen_values = [list(x) for x in list(recordsmen.values())]
-            recordsmen_lst = [[level_names[i]] + recordsmen_values[i] for i in range(3)]
-
-            # insert data into the Treeview
-            for item in recordsmen_lst:
-            # "" means no parent (top level item), "end" means insert at the end of the list
-                tree.insert("", tk.END, values=item)
-
-            play_sound("do_you_like", pool=False)
-
-            # pack the widgets
-            tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        def start_time():
-            nonlocal start
-            # if all cells are closed, start the session timer
-            if field.closed == field.n ** 2 and not start:
-                start = time.time()
-                update_time()
-
-        def update_time():
-            global session_stop
-            session_time_right.config(text=f"{get_time_in_hhmmss()}")
-            session_stop = root.after(1000, update_time)
-
-        def stop_time():
-            global session_stop
-            root.after_cancel(session_stop)
-            session_stop = None
-                
-        def get_table(seed : int, reverse=False):
-            cnt = seed
-            table = {}
-            for j in range(10):
-                for i in range(10):
-                    if not reverse:
-                        table[(i, j)] = cnt
-                    else:
-                        table[cnt] = (i, j)
-                    cnt += 1
-            return table
-        
-        def get_time_in_hhmmss():
-            return time.strftime("%H:%M:%S", time.gmtime(time.time() - start))
-        
         # event handler - "cursor hovers over a closed cell"
         def on_motion(event):
             #=^.^=
             nonlocal target_cell, prev_cell
-            cell_table = get_table(1, True)
+            cell_table = cl.get_table(1, True)
             for key in cells:
                 if key[0][0] < event.x < key[0][1] and key[1][0] < event.y < key[1][1]:
                     i, j = cell_table[cells[key]]
@@ -337,26 +139,66 @@ def main():
                 if canvas.itemcget(value, option="fill") == "light grey":
                     canvas.itemconfigure(value, fill='light blue')
                     prev_cell = target_cell = None
+                
+        def push_exit():
+            nonlocal exit
+            result = messagebox.askyesno("Exit", "Are you sure you want to quit?")
+            if result:
+                root.destroy()
+                exit = True  # Exit the loop if "Yes" is pressed
+
+        def mute_func():
+            nonlocal mute
+            mute = not mute
+        
+        def set_level(value : str):
+            nonlocal level
+            level = (value, levels[value])
+            root.destroy()
+
+        def start_time():
+            nonlocal start
+            # if all cells are closed, start the session timer
+            if field.closed == field.n ** 2 and not start:
+                start = time.time()
+                update_time()
+
+        def update_time():
+            global session_stop
+            session_time_right.config(text=f"{get_time_in_hhmmss()}")
+            session_stop = root.after(1000, update_time)
+
+        def stop_time():
+            global session_stop
+            root.after_cancel(session_stop)
+            session_stop = None
+
+        def get_secs_from_hhmmss(hhmmss : str):
+            parse_time = [int(x) for x in hhmmss.split(":")]
+            return parse_time[0] * 3600 + parse_time[1] * 60 + parse_time[2]
+        
+        def get_time_in_hhmmss():
+            return time.strftime("%H:%M:%S", time.gmtime(time.time() - start))
         
         # getting the reverse lookup table for the image layer - to determine the cell that was clicked
-        img_table_rvrs = get_table(101, True)
+        img_table_rvrs = cl.get_table(101, True)
 
         # mixer initialization (if mute == False)
         if not mute:
             pygame.mixer.init()
         
         # greeting, sound accompaniment
-        play_sound("start")
+        cl.play_sound(mute, mode="start")
 
         # field creating + initialization, default level = "Easy / 10 mines"
-        field = get_init_field(level)
+        field = cl.get_init_field(level)
 
         # main window, creating + configuration
         root = tk.Tk()
         root.title("Men's♂wee-weeper")
         root.geometry("510x560")
         try:
-            root.iconbitmap(default=resource_path("images/darkholme.ico"))
+            root.iconbitmap(default=cl.resource_path("images/darkholme.ico"))
         except FileNotFoundError:
             root.iconbitmap()
 
@@ -374,6 +216,10 @@ def main():
             for j in range(2, 502, 50):
                 cell = canvas.create_rectangle(i, j, i + 50, j + 50, fill="light blue", outline="#f0f0f0", width=3, tags="cell")
                 cells[((i, i + 50), (j, j + 50))] = cell
+
+        # creating PhotoImage objects from png's for displaying dropplets and eggplants
+        droplets_img = ImageTk.PhotoImage(Image.open(cl.resource_path("images/droplets.png")))
+        eggplant_img = ImageTk.PhotoImage(Image.open(cl.resource_path("images/eggplant.png")))
 
         # creating a transp 35x35 pixel square (default value for the layer of images)
         transp_sq = Image.new("RGBA", (35, 35),  (255, 255, 255, 0))
@@ -418,7 +264,7 @@ def main():
         sounds_menu.add_checkbutton(label="Mute", variable=mute, command=mute_func)
         records_menu = tk.Menu()
         main_menu.add_cascade(label="Records", menu=records_menu)
-        records_menu.add_command(label="Show table", command=show_records)
+        records_menu.add_command(label="Show table", command=lambda : cl.show_records(root, levels, mute))
         root.config(menu=main_menu)
 
         # creating and packing labels for status bar and session time bar
@@ -428,18 +274,8 @@ def main():
         session_time_right = tk.Label(root, anchor=tk.E, width=7)
         session_time_right.pack(side=tk.RIGHT, anchor=tk.E, padx=5)
 
-        # creating PhotoImage objects from png's for displaying dropplets and eggplants
-        try:
-            droplets_img = ImageTk.PhotoImage(Image.open(resource_path("images/droplets.png")))
-            eggplant_img = ImageTk.PhotoImage(Image.open(resource_path("images/eggplant.png")))
-        except FileNotFoundError:
-            messagebox.showerror("Error", "Image files for mines and tags were not found in the directory.\nThe game will be terminated.")
-            root.destroy()
-            exit = not exit
-
         # inf loop for the run_app (exit if exit == True)
         root.mainloop()
-
 
 if __name__ == "__main__":
     main()
