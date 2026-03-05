@@ -4,7 +4,6 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog
 from PIL import Image, ImageTk
 import pygame.mixer
-from random import choice
 import time
 import os
 import stat
@@ -12,62 +11,54 @@ import stat
 
 def main():
     exit, mute, start = False, False, None
-    target_cell, prev_cell = None, None
     levels = {"10 dicks" : 10, "15 dicks" : 15, "20 dicks" : 20}
     level = tuple(levels.items())[0]
 
     while not exit:
-        def left_click(event):
+        def left_right_click(event, click):
             nonlocal field
 
-            # start the session timer
+            # start session time if first move
             start_time()
 
             for key, value in images.items():
                 if (key[0] - 25 < event.x < key[0] + 25 and key[1] - 25 < event.y < key[1] + 25):
                     i, j = img_table_rvrs[value]
                     cell = field.field[i][j]
-                    if cell and not cell.is_tagged:
-                        # safe first move implementation
-                        if field.closed == field.n ** 2 and cell.is_mine:
-                            while 1:
-                                field = cl.get_init_field(level)
-                                if not field.field[i][j].is_mine:
-                                    cell = field.field[i][j]
-                                    break
-                        closed_before = field.closed
-                        field.open_cell(i, j)
-                        cr.fill_opened_cells(field, canvas, all=False)
-                        if cell.is_mine:
-                            lose_win("lose")
-                        else:
-                            if field.closed == field.total_mines:
-                                lose_win("win")
+                    if click == "left":
+                        if cell and not cell.is_tagged:
+                            # safe first move implementation
+                            if field.closed == field.n ** 2 and cell.is_mine:
+                                while 1:
+                                    field = cl.get_init_field(level)
+                                    if not field.field[i][j].is_mine:
+                                        cell = field.field[i][j]
+                                        break
+                            closed_before = field.closed
+                            field.open_cell(i, j)
+                            cr.fill_opened_cells(field, canvas, all=False)
+                            if cell.is_mine:
+                                lose_win("lose")
                             else:
-                                if closed_before - field.closed > 1:
-                                    cl.play_sound(mute, "nice", pool=False)
+                                if field.closed == field.total_mines:
+                                    lose_win("win")
                                 else:
-                                    cl.play_sound(mute, "move")
-                                cr.show_open(field, canvas, droplets_img, eggplant_img, transp_sq, mode="show")
-                                status_bar_left.config(text=f"Nice move! Tags set: {field.tags}. Cells left to open: {field.closed - field.total_mines}.")
-
-        def right_click(event):
-            # start the session timer
-            start_time()
-
-            for key, value in images.items():
-                if (key[0] - 25 <= event.x <= key[0] + 25 and key[1] - 25 <= event.y <= key[1] + 25):
-                    i, j = img_table_rvrs[value]
-                    cell = field.field[i][j]
-                    if not cell.is_open:
-                        cell.is_tagged = not cell.is_tagged
-                        field.tags = field.tags + 1 if cell.is_tagged else field.tags - 1
-                        cl.play_sound(mute, "tag")
-                        cr.show_open(field, canvas, droplets_img, eggplant_img, transp_sq, mode="show")
-                        status_bar_left.config(text=f"The tag is {"" if cell.is_tagged else "un"}set! Tags set: {field.tags}. Cells left to open: {field.closed - field.total_mines}.")
+                                    if closed_before - field.closed > 1:
+                                        cl.play_sound(mute, mode="nice", pool=False)
+                                    else:
+                                        cl.play_sound(mute, mode="move")
+                                    cr.show_open(field, canvas, droplets_img, eggplant_img, transp_sq, mode="show")
+                                    status_bar_left.config(text=f"Nice move! Tags set: {field.tags}. Cells left to open: {field.closed - field.total_mines}.")
+                    else:
+                        if cell:
+                            cell.is_tagged = not cell.is_tagged
+                            field.tags = field.tags + 1 if cell.is_tagged else field.tags - 1
+                            cl.play_sound(mute, mode="tag")
+                            cr.show_open(field, canvas, droplets_img, eggplant_img, transp_sq, mode="show")
+                            status_bar_left.config(text=f"The tag is {"" if cell.is_tagged else "un"}set! Tags set: {field.tags}. Cells left to open: {field.closed - field.total_mines}.")           
 
         def lose_win(message):
-            nonlocal exit, level, start
+            nonlocal exit, start
             recordsmen = cl.get_recordsmen(levels)
 
             cl.play_sound(mute, message)
@@ -77,7 +68,7 @@ def main():
             status_bar_left.config(text=f"Game over. Time: {stop_hhmmss}")
             stop_time()
             session_time_right.config(text="")
-
+  
             if recordsmen and message == "win" and get_secs_from_hhmmss(stop_hhmmss) < get_secs_from_hhmmss(recordsmen[level[0]][1]):
                 name = "wee"
                 while name is not None and not 4 <= len(name) <= 30:
@@ -97,55 +88,16 @@ def main():
 
             result = messagebox.askyesno("Game over", f"You {message}! Wish you try once more?")
             if not result:
-                exit = True  # Exit the loop if "No" is pressed
-            start = None
+                exit = not exit  # Exit the loop if "No" is pressed
+            start = None 
             root.destroy()
-
-        # event handler - "cursor hovers over a closed cell"
-        def on_motion(event):
-            #=^.^=
-            nonlocal target_cell, prev_cell
-            cell_table = cl.get_table(1, True)
-            for key in cells:
-                if key[0][0] < event.x < key[0][1] and key[1][0] < event.y < key[1][1]:
-                    i, j = cell_table[cells[key]]
-                    cell = field.field[i][j]
-                    if cell:
-                        # get all objects under the cursor (in stack order, bottom to top)
-                        objects_under = canvas.find_overlapping(event.x, event.y, event.x, event.y)
-
-                        # looking for the first object with the tag "cell"
-                        for obj in objects_under:
-                            tags = canvas.gettags(obj)
-                            if "cell" in tags:
-                                target_cell = obj
-                                break
-
-                        # if the target object is found and it has changed
-                        if target_cell and target_cell != prev_cell:
-                            # remove the fill from the previous one
-                            if prev_cell and canvas.itemcget(prev_cell, option="fill") != '#56b6c2':
-                                canvas.itemconfigure(prev_cell, fill='light blue')
-                            # filling the next one, moving on to the next one
-                            if canvas.itemcget(target_cell, option="fill") != '#56b6c2':
-                                canvas.itemconfigure(target_cell, fill='light grey')
-                                prev_cell = target_cell
-                    else:
-                        on_leaving(event)
-        # if the cursor is out of the field, return the fill to its original state        
-        def on_leaving(event):
-            nonlocal target_cell, prev_cell
-            for value in cells.values():
-                if canvas.itemcget(value, option="fill") == "light grey":
-                    canvas.itemconfigure(value, fill='light blue')
-                    prev_cell = target_cell = None
                 
         def push_exit():
             nonlocal exit
             result = messagebox.askyesno("Exit", "Are you sure you want to quit?")
             if result:
+                exit = not exit  # Exit the loop if "Yes" is pressed
                 root.destroy()
-                exit = True  # Exit the loop if "Yes" is pressed
 
         def mute_func():
             nonlocal mute
@@ -205,10 +157,10 @@ def main():
         # canvas, creating + configuration
         canvas = tk.Canvas(bg="white", width=501, height=501)
         canvas.pack(anchor=tk.CENTER)
-        canvas.bind("<Button-1>", left_click)
-        canvas.bind("<Button-3>", right_click)
-        canvas.bind("<Motion>", on_motion)
-        canvas.bind("<Leave>", on_leaving)
+        canvas.bind("<Button-1>", lambda event : left_right_click(event, click="left"))
+        canvas.bind("<Button-3>", lambda event : left_right_click(event, click="right"))
+        canvas.bind("<Motion>", lambda event : cr.on_motion(event, canvas, cells, field))
+        canvas.bind("<Leave>", lambda event : cr.on_leaving(event, canvas, cells))
 
         # creating the layer of cells (1st)
         cells = {}
@@ -217,7 +169,7 @@ def main():
                 cell = canvas.create_rectangle(i, j, i + 50, j + 50, fill="light blue", outline="#f0f0f0", width=3, tags="cell")
                 cells[((i, i + 50), (j, j + 50))] = cell
 
-        # creating PhotoImage objects from png's for displaying dropplets and eggplants
+        # creating PhotoImage objects from pngs for displaying dropplets and eggplants
         droplets_img = ImageTk.PhotoImage(Image.open(cl.resource_path("images/droplets.png")))
         eggplant_img = ImageTk.PhotoImage(Image.open(cl.resource_path("images/eggplant.png")))
 
@@ -229,15 +181,13 @@ def main():
         images = {}
         for i in range(27, 527, 50):
             for j in range(27, 527, 50):
-                cell = canvas.create_image(i, j, image=transp_sq, anchor=tk.CENTER, tags="img")
-                images[(i, j)] = cell
+                images[(i, j)] = canvas.create_image(i, j, image=transp_sq, anchor=tk.CENTER, tags="img")
 
         # creating the layer of text - 3rd - to display the number of mines
         text = {}
         for i in range(27, 527, 50):
             for j in range(27, 527, 50):
-                cell = canvas.create_text(i, j, text="", font=("Bahnschrift", 16, "bold"), fill="white", anchor=tk.CENTER, tags="txt")
-                text[(i, j)] = cell
+                text[(i, j)] = canvas.create_text(i, j, text="", font=("Bahnschrift", 16, "bold"), fill="white", anchor=tk.CENTER, tags="txt")
 
         # main window centering
         root.eval('tk::PlaceWindow . center')
@@ -261,7 +211,8 @@ def main():
         level_menu.add_radiobutton(label="20 dicks", variable=var_lvl, command=lambda : set_level("20 dicks"))
         sounds_menu = tk.Menu()
         main_menu.add_cascade(label="Sounds", menu=sounds_menu)
-        sounds_menu.add_checkbutton(label="Mute", variable=mute, command=mute_func)
+        var_mute = tk.StringVar(value="Mute" if mute else None)
+        sounds_menu.add_radiobutton(label="Mute", variable=var_mute, command=mute_func)
         records_menu = tk.Menu()
         main_menu.add_cascade(label="Records", menu=records_menu)
         records_menu.add_command(label="Show table", command=lambda : cl.show_records(root, levels, mute))
